@@ -18,11 +18,11 @@ type SeparatorProgressEvent = {
   totalChunks?: number;
 };
 
-let separatorPromise: Promise<MDXSeparator> | null = null;
+let separatorInstance: MDXSeparator | null = null;
 
-function getSeparator(onProgress: (progress: SeparationProgress) => void): Promise<MDXSeparator> {
-  if (!separatorPromise) {
-    separatorPromise = createSeparator("UVR-MDX-NET-Voc_FT", {
+function getSeparator(onProgress: (progress: SeparationProgress) => void): MDXSeparator {
+  if (!separatorInstance) {
+    separatorInstance = createSeparator("UVR-MDX-NET-Voc_FT", {
       common: {
         logLevel: "warning",
         onProgress: (event: SeparatorProgressEvent) => {
@@ -41,10 +41,9 @@ function getSeparator(onProgress: (progress: SeparationProgress) => void): Promi
         hopLength: 1024,
         executionProviders: ["webgpu", "wasm"],
       },
-    }) as Promise<MDXSeparator>;
-    separatorPromise.catch(() => { separatorPromise = null; });
+    });
   }
-  return separatorPromise;
+  return separatorInstance;
 }
 
 function audioBufferToWav(buffer: AudioBuffer): Blob {
@@ -94,7 +93,8 @@ export async function separateTrack(
     await context.close();
 
     onProgress({ fraction: 0.08, label: "Loading the AI model…", detail: "The first download is about 67 MB; later visits may use the browser cache." });
-    const separator = await getSeparator(onProgress);
+    const separator = getSeparator(onProgress);
+    await separator.loadModel();
     onProgress({ fraction: 0.45, label: "Separating vocals and music…", detail: "This can take a few minutes depending on your device." });
     const outputUrls = await separator.separate(inputUrl);
     temporaryUrls = [...outputUrls];
